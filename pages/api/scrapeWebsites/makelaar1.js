@@ -24,53 +24,60 @@ export default async function handler(req, res) {
   }
 }
 
-async function scrapeWebsite(name, url){
-
-    // Use Puppeteer to scrape the website and capture a screenshot
+async function scrapeWebsite(name, url) {
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-    await page.goto(url);
 
-    // Split the URL after ".nl"
-    const parts = url.split('.nl');
-    const urlBeforeNl = parts[0]; // Get the part after ".nl"
+    async function scrapePage(pageUrl) {
+        await page.goto(pageUrl);
 
-    // generate unique number
-    var date = new Date;
-    var seconds = date.getSeconds();
-    var minutes = date.getMinutes();
-    var hour = date.getHours();
+        const elements = await page.$$eval('.al4woning', elements => {
+            const contextData = [];
+            elements.forEach(element => {
+                const html = element.innerHTML;
+                const jsonRegex = /<script type="application\/ld\+json">\s*({[^]+?"@context"[^]+?})\s*<\/script>/;
+                const match = html.match(jsonRegex);
+                if (match && match[1]) {
+                    contextData.push(JSON.parse(match[1]));
+                }
+            });
+            return contextData;
+        });
 
-    var timeCombined = seconds + '.' + minutes + '.' + hour;
+        // call function to check elements array for new data, if yes write to JSON file
+        checkElementsAndWrite(elements, pageUrl.split('.nl')[0]);
 
-    // Getting an array of all elements with class 'item'
-    const elements = await page.$$eval('.al4woning', elements => {
-      const contextData = [];
-      elements.forEach(element => {
-          const html = element.innerHTML;
-          const jsonRegex = /<script type="application\/ld\+json">\s*({[^]+?"@context"[^]+?})\s*<\/script>/;
-          const match = html.match(jsonRegex);
-          if (match && match[1]) {
-              contextData.push(JSON.parse(match[1]));
-          }
-      });
-      return contextData;
-  });
+        return elements;
+    }
 
-    // call function to check elements array for new data, if yes write to JSON file
-    checkElementsAndWrite(elements, urlBeforeNl);
+    // Function to scrape all pages
+    async function scrapeAllPages() {
+        let currentPage = 1;
+        let allElements = [];
 
-    // Capture a screenshot
-    await page.screenshot({
-      path: 'screenshots/'+name+''+timeCombined+'.jpg',
-      fullPage: true 
-    })
+        while (true) {
+            const pageUrl = `${url}pagina-${currentPage}/`;
+            const pageElements = await scrapePage(pageUrl);
+            allElements = allElements.concat(pageElements);
 
-    // Close the browser
+            // Check if there is a next page
+            const nextPageButton = await page.$('.next-page');
+            if (!nextPageButton) {
+                break; // If there's no next page button, exit the loop
+            }
+
+            currentPage++;
+            await nextPageButton.click();
+            await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
+        }
+
+        return allElements;
+    }
+
+    const allElements = await scrapeAllPages();
+
     await browser.close();
-
 }
-
 
 function checkElementsAndWrite(elements, urlBeforeNl) {
 
