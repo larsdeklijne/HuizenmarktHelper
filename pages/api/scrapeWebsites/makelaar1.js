@@ -140,6 +140,7 @@ function checkElementsAndWrite(elements, urlBeforeNl) {
         }
 
         const fullUrl = urlBeforeNl + ".nl" + url;
+        const elementUrl = element.url;
 
         // Prepare data object to be appended
         const dataToAppend = {
@@ -149,15 +150,16 @@ function checkElementsAndWrite(elements, urlBeforeNl) {
             price,
             url,
             fullUrl,
-            dateAdded: formattedDate
+            dateAdded : formattedDate,
         };
 
         // Add data to the appropriate file based on the price
-        if (price <= 275000 && !houseExists(url, existingDataBetaalbaar)) {
+        if (price <= 235000 && !houseExists(url, existingDataBetaalbaar)) {
             existingDataBetaalbaar.push(dataToAppend);
             console.log(`New affordable house added: ${streetAddress}, ${addressLocality}`);
         }
 
+        // overwrite data in /huizenJSON/makelaar1.json
         if (!houseExists(url, existingDataMakelaar1)) {
             existingDataMakelaar1.push(dataToAppend);
             console.log(`New house added: ${streetAddress}, ${addressLocality}`);
@@ -185,3 +187,4 @@ function checkElementsAndWrite(elements, urlBeforeNl) {
         }
     });
 }
+
